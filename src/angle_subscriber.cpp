@@ -2,6 +2,7 @@
 #include "std_msgs/Float64MultiArray.h"
 #include"sensor_msgs/LaserScan.h"
 #include<iostream>
+#include<limits>
 
 using namespace std;
 
@@ -29,6 +30,7 @@ void lasercallback(const sensor_msgs::LaserScan::ConstPtr &input_scan)
         double current_angle = input_scan->angle_min;
         ros::Time start_time = input_scan->header.stamp;
         unsigned int count = 0;
+        double temp_replacement_value = std::numeric_limits<double>::quiet_NaN();
         //loop through the scan and truncate the beginning and the end of the scan as necessary
         //cout << "before for loop"<<endl;
         for(unsigned int i = 0; i < input_scan->ranges.size(); ++i){
@@ -39,7 +41,15 @@ void lasercallback(const sensor_msgs::LaserScan::ConstPtr &input_scan)
             start_time += ros::Duration(input_scan->time_increment);
           }
           else{
-            filtered_scan.ranges[count] = input_scan->ranges[i];
+
+            if (input_scan->ranges[i] <= 0.2)
+            {
+              filtered_scan.ranges[count] = temp_replacement_value;
+            }
+            else
+            {
+              filtered_scan.ranges[count] = input_scan->ranges[i];
+            }
             //cout << "filtered_scan.ranges[count]" <<endl;
             //make sure  that we don't update intensity data if its not available
             if(input_scan->intensities.size() > i)
@@ -50,6 +60,7 @@ void lasercallback(const sensor_msgs::LaserScan::ConstPtr &input_scan)
             //check if we need to break out of the loop, basically if the next increment will put us over the threshold
             if(current_angle + input_scan->angle_increment > upper_angle){
               break;
+
             }
 
             current_angle += input_scan->angle_increment;
@@ -74,6 +85,8 @@ void lasercallback(const sensor_msgs::LaserScan::ConstPtr &input_scan)
         if(input_scan->intensities.size() >= count)
           filtered_scan.intensities.resize(count);
         //cout << "done"<<endl;
+
+        
         pub.publish(filtered_scan);
         //cout<<"published"<<endl;
 }
